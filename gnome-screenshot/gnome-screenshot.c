@@ -855,6 +855,13 @@ finish_prepare_screenshot (char *initial_uri, GdkWindow *window, GdkRectangle *r
   dialog = screenshot_dialog_new (screenshot, initial_uri, take_window_shot);
   g_free (initial_uri);
 
+  /* Skip dialog when -o option specified */
+  if (given_file_name)
+    {
+      screenshot_save_do_save_with_given_file_name (screenshot, save_done_notification, dialog, given_file_name);
+      exit (0);
+    }
+
   screenshot_save_start (screenshot, save_done_notification, dialog);
 
   run_dialog (dialog);

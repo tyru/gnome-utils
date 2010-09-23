@@ -177,6 +177,25 @@ signal_handler (int sig)
 }
 
 void
+screenshot_save_do_save_with_given_file_name (
+			  GdkPixbuf    *pixbuf,
+			  SaveFunction  callback,
+			  gpointer      user_dataconst,
+			  const char *filename)
+{
+  GError *error = NULL;
+
+  if (! gdk_pixbuf_save (pixbuf, filename,
+			  "png", &error,
+			  "tEXt::Software", "gnome-screenshot",
+			  NULL))
+    {
+      g_critical ("error: Could not write to %s", filename);
+      exit (1);
+    }
+}
+
+void
 screenshot_save_start (GdkPixbuf    *pixbuf,
 		       SaveFunction  callback,
 		       gpointer      user_data)
