@@ -95,6 +95,7 @@ static GdkPixbuf *screenshot = NULL;
 /* Global variables*/
 static char *last_save_dir = NULL;
 static char *window_title = NULL;
+static char *given_file_name = NULL;
 static char *temporary_file = NULL;
 static gboolean save_immediately = FALSE;
 
@@ -886,9 +887,23 @@ check_file_done (gpointer user_data)
 static char *
 build_uri (AsyncExistenceJob *job)
 {
-  char *retval, *file_name;
+  char *curdir, *retval, *file_name;
 
-  if (window_title)
+  if (given_file_name)
+    {
+      if (g_path_is_absolute (given_file_name))
+        {
+          retval = g_strconcat ("file://", given_file_name, NULL);
+        }
+      else
+        {
+          curdir = g_get_current_dir ();
+          retval = g_strconcat ("file://", curdir, "/", given_file_name, NULL);
+          g_free (curdir);
+        }
+      return retval;
+    }
+  else if (window_title)
     {
       /* translators: this is the name of the file that gets made up
        * with the screenshot if a specific window is taken */
@@ -948,6 +963,14 @@ retry:
 			    G_FILE_QUERY_INFO_NONE, cancellable, &error);
   if (info != NULL)
     {
+      /* TODO: Disallow directory path */
+      if (given_file_name)
+        {
+          /* TODO: Show dialog and say "Do you want to overwrite?" */
+          g_printerr ("error: %s: already exists", given_file_name);
+          exit (1);
+        }
+
       /* file already exists, iterate again */
       g_object_unref (info);
       g_object_unref (file);
@@ -1291,6 +1314,7 @@ main (int argc, char *argv[])
     { "delay", 'd', 0, G_OPTION_ARG_INT, &delay_arg, N_("Take screenshot after specified delay [in seconds]"), N_("seconds") },
     { "border-effect", 'e', 0, G_OPTION_ARG_STRING, &border_effect_arg, N_("Effect to add to the border (shadow, border or none)"), N_("effect") },
     { "interactive", 'i', 0, G_OPTION_ARG_NONE, &interactive_arg, N_("Interactively set options"), NULL },
+    { "out-file", 'o', 0, G_OPTION_ARG_STRING, &given_file_name, N_("File-path to output"), N_("effect") },
     { NULL },
   };
 
