@@ -274,32 +274,6 @@ logview_set_window_title (LogviewWindow *logview, const char * log_name)
   g_free (window_title);
 }
 
-static void
-logview_menu_item_set_state (LogviewWindow *logview, char *path, gboolean state)
-{
-  GtkAction *action;
-
-  g_assert (path);
-
-  action = gtk_ui_manager_get_action (logview->priv->ui_manager, path);
-  gtk_action_set_sensitive (action, state);
-}
-
-static void
-logview_window_menus_set_state (LogviewWindow *logview)
-{
-  LogviewLog *log;
-
-  log = logview_manager_get_active_log (logview->priv->manager);
-
-  logview_menu_item_set_state (logview, "/LogviewMenu/FileMenu/CloseLog", (log != NULL));
-  logview_menu_item_set_state (logview, "/LogviewMenu/ViewMenu/Search", (log != NULL));
-  logview_menu_item_set_state (logview, "/LogviewMenu/EditMenu/Copy", (log != NULL));
-  logview_menu_item_set_state (logview, "/LogviewMenu/EditMenu/SelectAll", (log != NULL));
-
-  g_object_unref (log);
-}
-
 /* actions callbacks */
 
 static void
@@ -437,8 +411,6 @@ static void
 findbar_close_cb (LogviewFindbar *findbar,
                   gpointer user_data)
 {
-  LogviewWindow *logview = user_data;
-
   gtk_widget_hide (GTK_WIDGET (findbar));
   logview_findbar_set_message (findbar, NULL);
 }
@@ -596,7 +568,7 @@ filter_buffer (LogviewWindow *logview, gint start_line)
   GtkTextIter start, *end;
   gchar* text;
   GList* cur_filter;
-  gboolean matched, invisible_set;
+  gboolean matched;
   int lines, i;
 
   buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (logview->priv->text_view));
@@ -681,7 +653,6 @@ update_filter_menu (LogviewWindow *window)
   LogviewWindowPrivate *priv;
   GtkUIManager* ui;
   GList *actions, *l;
-  gint n, i;
   guint id;
   GList *filters;
   GtkTextBuffer *buffer;
@@ -947,29 +918,6 @@ loglist_day_cleared_cb (LogviewLoglist *loglist,
 }
 
 static void
-logview_window_select_date (LogviewWindow *logview, GDate *date)
-{
-  LogviewLog *log;
-  GSList *days, *l;
-  Day *day;
-  gboolean found = FALSE;
-
-  log = logview_manager_get_active_log (logview->priv->manager);
-
-  for (l = days; l; l = l->next) {
-    day = l->data;
-    if (g_date_compare (date, day->date) == 0) {
-      found = TRUE;
-      break;
-    }
-  }
-
-  if (found) {
-    real_select_day (logview, day->date, day->first_line, day->last_line);
-  }   
-}
-
-static void
 log_monitor_changed_cb (LogviewLog *log,
                         gpointer user_data)
 {
@@ -1230,7 +1178,7 @@ message_area_create_error_box (LogviewWindow *window,
   gtk_label_set_use_markup (GTK_LABEL (primary_label), TRUE);
   gtk_label_set_line_wrap (GTK_LABEL (primary_label), TRUE);
   gtk_misc_set_alignment (GTK_MISC (primary_label), 0, 0.5);
-  GTK_WIDGET_SET_FLAGS (primary_label, GTK_CAN_FOCUS);
+  gtk_widget_set_can_focus (primary_label, TRUE);
   gtk_label_set_selectable (GTK_LABEL (primary_label), TRUE);
 
   window->priv->message_primary = primary_label;
@@ -1238,7 +1186,7 @@ message_area_create_error_box (LogviewWindow *window,
   secondary_label = gtk_label_new (NULL);
   gtk_widget_show (secondary_label);
   gtk_box_pack_start (GTK_BOX (vbox), secondary_label, TRUE, TRUE, 0);
-  GTK_WIDGET_SET_FLAGS (secondary_label, GTK_CAN_FOCUS);
+  gtk_widget_set_can_focus (secondary_label, TRUE);
   gtk_label_set_use_markup (GTK_LABEL (secondary_label), TRUE);
   gtk_label_set_line_wrap (GTK_LABEL (secondary_label), TRUE);
   gtk_label_set_selectable (GTK_LABEL (secondary_label), TRUE);
@@ -1276,8 +1224,6 @@ static void
 message_area_response_cb (GtkInfoBar *message_area,
                           int response_id, gpointer user_data)
 {
-  LogviewWindow *window = user_data;
-
   gtk_widget_hide (GTK_WIDGET (message_area));
 
   g_signal_handlers_disconnect_by_func (message_area,
@@ -1297,11 +1243,10 @@ logview_window_finalize (GObject *object)
 static void
 logview_window_init (LogviewWindow *logview)
 {
-  gint i;
   GtkActionGroup *action_group;
   GtkAccelGroup *accel_group;
   GError *error = NULL;
-  GtkWidget *hpaned, *main_view, *scrolled, *vbox, *w;
+  GtkWidget *hpaned, *main_view, *vbox, *w;
   PangoContext *context;
   PangoFontDescription *fontdesc;
   gchar *monospace_font_name;
